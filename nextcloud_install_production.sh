@@ -5,6 +5,15 @@
 # Prefer IPv4
 sed -i "s|#precedence ::ffff:0:0/96  100|precedence ::ffff:0:0/96  100|g" /etc/gai.conf
 
+# Install bzip2 if not existing
+if [ "$(dpkg-query -W -f='${Status}' "bzip2" 2>/dev/null | grep -c "ok installed")" == "1" ]
+then
+    echo "bzip2 OK"
+else
+    apt update -q4 & spinner_loading
+    apt install bzip2 -y
+fi
+
 # Install curl if not existing
 if [ "$(dpkg-query -W -f='${Status}' "curl" 2>/dev/null | grep -c "ok installed")" == "1" ]
 then
@@ -12,6 +21,33 @@ then
 else
     apt update -q4 & spinner_loading
     apt install curl -y
+fi
+
+# Install lsb-release if not existing
+if [ "$(dpkg-query -W -f='${Status}' "lsb-release" 2>/dev/null | grep -c "ok installed")" == "1" ]
+then
+    echo "lsb-release OK"
+else
+    apt update -q4 & spinner_loading
+    apt install lsb-release -y
+fi
+
+# Install lshw if not existing
+if [ "$(dpkg-query -W -f='${Status}' "lshw" 2>/dev/null | grep -c "ok installed")" == "1" ]
+then
+    echo "lshw OK"
+else
+    apt update -q4 & spinner_loading
+    apt install lshw -y
+fi
+
+# Install sudo if not existing
+if [ "$(dpkg-query -W -f='${Status}' "sudo" 2>/dev/null | grep -c "ok installed")" == "1" ]
+then
+    echo "sudo OK"
+else
+    apt update -q4 & spinner_loading
+    apt install sudo -y
 fi
 
 # shellcheck disable=2034,2059
@@ -34,6 +70,7 @@ root_check
 ram_check 2 Nextcloud
 cpu_check 1 Nextcloud
 
+
 # Create new current user
 run_static_script adduser nextcloud_install_production.sh
 
@@ -48,10 +85,11 @@ You can find the download link here: https://www.ubuntu.com/download/server"
     exit 1
 fi
 
-if ! version 16.04 "$DISTRO" 16.04.4; then
-msg_box "Ubuntu version $DISTRO must be between 16.04 - 16.04.4"
-    exit 1
-fi
+# Assuming it's the correct version. need to put a better check in place.
+#if ! version 16.04 "$DISTRO" 16.04.4; then
+#msg_box "Ubuntu version $DISTRO must be between 16.04 - 16.04.4"
+#    exit 1
+#fi
 
 # Check if key is available
 if ! wget -q -T 10 -t 2 "$NCREPO" > /dev/null
@@ -66,6 +104,7 @@ is_this_installed apache2
 is_this_installed php
 is_this_installed mysql-common
 is_this_installed mariadb-server
+is_this_installed mysql-server
 
 # Create $SCRIPTS dir
 if [ ! -d "$SCRIPTS" ]
@@ -73,69 +112,75 @@ then
     mkdir -p "$SCRIPTS"
 fi
 
+##- Not changing DNS
 # Change DNS
-if ! [ -x "$(command -v resolvconf)" ]
-then
-    apt install resolvconf -y -q
-    dpkg-reconfigure resolvconf
-fi
-echo "nameserver 9.9.9.9" > /etc/resolvconf/resolv.conf.d/base
-echo "nameserver 149.112.112.112" >> /etc/resolvconf/resolv.conf.d/base
+##if ! [ -x "$(command -v resolvconf)" ]
+##then
+##    apt install resolvconf -y -q
+##    dpkg-reconfigure resolvconf
+##fi
+##echo "nameserver 9.9.9.9" > /etc/resolvconf/resolv.conf.d/base
+##echo "nameserver 149.112.112.112" >> /etc/resolvconf/resolv.conf.d/base
 
+#- Networking is fine, I'm SSHed in
 # Check network
-if ! [ -x "$(command -v nslookup)" ]
-then
-    apt install dnsutils -y -q
-fi
-if ! [ -x "$(command -v ifup)" ]
-then
-    apt install ifupdown -y -q
-fi
-sudo ifdown "$IFACE" && sudo ifup "$IFACE"
-if ! nslookup google.com
-then
-msg_box "Network NOT OK. You must have a working network connection to run this script."
-    exit 1
-fi
+##if ! [ -x "$(command -v nslookup)" ]
+##then
+##    apt install dnsutils -y -q
+##fi
+##if ! [ -x "$(command -v ifup)" ]
+##then
+##    apt install ifupdown -y -q
+##fi
+##sudo ifdown "$IFACE" && sudo ifup "$IFACE"
+### microsoft is allowed in more countries than google is :)
+##if ! nslookup microsoft.com
+##then
+##msg_box "Network NOT OK. You must have a working network connection to run this script."
+##    exit 1
+##fi
 
+##- Skipping locales because my server is already as I need it
 # Set locales
-apt install language-pack-en-base -y
-sudo locale-gen "sv_SE.UTF-8" && sudo dpkg-reconfigure --frontend=noninteractive locales
+## apt install language-pack-en-base -y
+## sudo locale-gen "sv_SE.UTF-8" && sudo dpkg-reconfigure --frontend=noninteractive locales
 
+##- Skipping repo selection because my provider already sets defaults
 # Check where the best mirrors are and update
-echo
-printf "Your current server repository is:  ${Cyan}%s${Color_Off}\n" "$REPO"
-if [[ "no" == $(ask_yes_or_no "Do you want to try to find a better mirror?") ]]
-then
-    echo "Keeping $REPO as mirror..."
-    sleep 1
-else
-   echo "Locating the best mirrors..."
-   apt update -q4 & spinner_loading
-   apt install python-pip -y
-   pip install \
-       --upgrade pip \
-       apt-select
-    apt-select -m up-to-date -t 5 -c
-    sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup && \
-    if [ -f sources.list ]
-    then
-        sudo mv sources.list /etc/apt/
-    fi
-fi
-clear
+##echo
+##printf "Your current server repository is:  ${Cyan}%s${Color_Off}\n" "$REPO"
+##if [[ "no" == $(ask_yes_or_no "Do you want to try to find a better mirror?") ]]
+##then
+##    echo "Keeping $REPO as mirror..."
+##    sleep 1
+##else
+##   echo "Locating the best mirrors..."
+##   apt update -q4 & spinner_loading
+##   apt install python-pip -y
+##   pip install \
+##       --upgrade pip \
+##       apt-select
+##    apt-select -m up-to-date -t 5 -c
+##    sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup && \
+##    if [ -f sources.list ]
+##    then
+##        sudo mv sources.list /etc/apt/
+##    fi
+##fi
+##clear
 
+##- Skipping setting up keyboard layout because we already have it
 # Set keyboard layout
-echo "Current keyboard layout is $(localectl status | grep "Layout" | awk '{print $3}')"
-if [[ "no" == $(ask_yes_or_no "Do you want to change keyboard layout?") ]]
-then
-    echo "Not changing keyboard layout..."
-    sleep 1
-    clear
-else
-    dpkg-reconfigure keyboard-configuration
-    clear
-fi
+##echo "Current keyboard layout is $(localectl status | grep "Layout" | awk '{print $3}')"
+##if [[ "no" == $(ask_yes_or_no "Do you want to change keyboard layout?") ]]
+##then
+##    echo "Not changing keyboard layout..."
+##    sleep 1
+##    clear
+##else
+##    dpkg-reconfigure keyboard-configuration
+##    clear
+##fi
 
 # Update system
 apt update -q4 & spinner_loading
@@ -148,45 +193,66 @@ echo "password='$MARIADB_PASS'"
 chmod 0600 $MYCNF
 chown root:root $MYCNF
 
-# Install MARIADB
+# Install -MARIADB- MySQL for ARM
+##- Issues with the available 10.0.0.2, need to comment out last two innodb options in config file
+##- can check if raspbian allows us to install 10.2 and just use it for this package
+##- No need for debconf. will set pass after install
+## Issue caused with config with log_slow_verbosity = query_plan
+## Need to find a way around this. continuing to test manually
 apt install software-properties-common -y
-sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-sudo add-apt-repository 'deb [arch=amd64,i386,ppc64el] http://ftp.ddg.lth.se/mariadb/repo/10.2/ubuntu xenial main'
-sudo debconf-set-selections <<< "mariadb-server-10.2 mysql-server/root_password password $MARIADB_PASS"
-sudo debconf-set-selections <<< "mariadb-server-10.2 mysql-server/root_password_again password $MARIADB_PASS"
+#sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+#sudo add-apt-repository 'deb [arch=amd64,i386,ppc64el] http://ftp.ddg.lth.se/mariadb/repo/10.2/ubuntu xenial main'
+#sudo debconf-set-selections <<< "mysql-server-5.7 mysql-server/root_password password $MARIADB_PASS"
+#sudo debconf-set-selections <<< "mysql-server-5.7 mysql-server/root_password_again password $MARIADB_PASS"
 apt update -q4 & spinner_loading
-check_command apt install mariadb-server-10.2 -y
+check_command apt install mariadb-server -y
+
+##+ Make sure mysql is running
+/etc/init.d/mysql start
 
 # Prepare for Nextcloud installation
 # https://blog.v-gar.de/2017/02/en-solved-error-1698-28000-in-mysqlmariadb/
 mysql -u root mysql -p"$MARIADB_PASS" -e "UPDATE user SET plugin='' WHERE user='root';"
 mysql -u root mysql -p"$MARIADB_PASS" -e "UPDATE user SET password=PASSWORD('$MARIADB_PASS') WHERE user='root';"
 mysql -u root -p"$MARIADB_PASS" -e "flush privileges;"
+mysql -u root -p"$MARIADB_PASS" -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')"
+mysql -u root -p"$MARIADB_PASS" -e "DELETE FROM mysql.user WHERE User=''"
+mysql -u root -p"$MARIADB_PASS" -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'"
+mysql -u root -p"$MARIADB_PASS" -e "FLUSH PRIVILEGES"
 
-# mysql_secure_installation
-apt -y install expect
-SECURE_MYSQL=$(expect -c "
-set timeout 10
-spawn mysql_secure_installation
-expect \"Enter current password for root (enter for none):\"
-send \"$MARIADB_PASS\r\"
-expect \"Change the root password?\"
-send \"n\r\"
-expect \"Remove anonymous users?\"
-send \"y\r\"
-expect \"Disallow root login remotely?\"
-send \"y\r\"
-expect \"Remove test database and access to it?\"
-send \"y\r\"
-expect \"Reload privilege tables now?\"
-send \"y\r\"
-expect eof
-")
-echo "$SECURE_MYSQL"
-apt -y purge expect
+## mysql_secure_installation
+## apt -y install expect
+## SECURE_MYSQL=$(expect -c "
+## set timeout 10
+## spawn mysql_secure_installation
+## expect \"Enter current password for root (enter for none):\"
+## send \"$MARIADB_PASS\r\"
+## expect \"Change the root password?\"
+## send \"n\r\"
+## expect \"Remove anonymous users?\"
+## send \"y\r\"
+## expect \"Disallow root login remotely?\"
+## send \"y\r\"
+## expect \"Remove test database and access to it?\"
+## send \"y\r\"
+## expect \"Reload privilege tables now?\"
+## send \"y\r\"
+## expect eof
+## ")
+## echo "$SECURE_MYSQL"
+## apt -y purge expect
 
 # Write a new MariaDB config
 run_static_script new_etc_mycnf
+
+##+ Manually changing config file to remove the InnoDB settings that cause issues:
+sed -i "s|innodb_use_atomic_writes = 1|#innodb_use_atomic_writes = 1|g" $ETCMYCNF
+sed -i "s|innodb_use_trim = 1|#innodb_use_trim = 1|g" $ETCMYCNF
+
+##+ Changing Log level to ROW due to unsupported features, this one doesn't work though
+sed -i "s|# * Basic Settings|binlog_format = ROW|g" $ETCMYCNF
+
+## At this point the DB isn't running, nothing works to start it manually, have to restart
 
 # Install Apache
 check_command apt install apache2 -y
@@ -224,7 +290,8 @@ check_command apt install -y \
 # echo 'extension="smbclient.so"' >> /etc/php/7.0/apache2/php.ini
 
 # Install VM-tools
-apt install open-vm-tools -y
+# Don't need open-vm-tools if we're not running on VMware. Not compiled for ARM anyway
+# apt install open-vm-tools -y
 
 # Download and validate Nextcloud package
 check_command download_verify_nextcloud_stable
@@ -486,7 +553,7 @@ check_command run_static_script change-root-profile
 
 # Install Redis
 run_static_script redis-server-ubuntu16
-
+##+ This requires user input, it appears because it needs to be compiled in ARM, it asks about a module.
 # Upgrade
 apt update -q4 & spinner_loading
 apt dist-upgrade -y
@@ -501,19 +568,21 @@ apt autoremove -y
 apt autoclean
 find /root "/home/$UNIXUSER" -type f \( -name '*.sh*' -o -name '*.html*' -o -name '*.tar*' -o -name '*.zip*' \) -delete
 
+##- These aren't available on ARM
 # Install virtual kernels for Hyper-V, and extra for UTF8 kernel module + Collabora and OnlyOffice
 # Kernel 4.4
-apt install --install-recommends -y \
-linux-virtual-lts-xenial \
-linux-tools-virtual-lts-xenial \
-linux-cloud-tools-virtual-lts-xenial \
-linux-image-virtual-lts-xenial \
-linux-image-extra-"$(uname -r)"
+## apt install --install-recommends -y \
+## linux-virtual-lts-xenial \
+## linux-tools-virtual-lts-xenial \
+## linux-cloud-tools-virtual-lts-xenial \
+## linux-image-virtual-lts-xenial \
+## linux-image-extra-"$(uname -r)"
 
 # Set secure permissions final (./data/.htaccess has wrong permissions otherwise)
 bash $SECURE & spinner_loading
 
 # Force MOTD to show correct number of updates
+##+ Command not found
 sudo /usr/lib/update-notifier/update-motd-updates-available --force
 
 # Reboot
